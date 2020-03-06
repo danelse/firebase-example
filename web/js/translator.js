@@ -1,7 +1,9 @@
 
 let translateButton;
+let copyResultButton;
 let textInput;
-let results;
+let history;
+let resultContainer;
 
 let userId;
 let firebaseAuth;
@@ -9,8 +11,10 @@ let firebaseFirestore;
 
 function initDom() {
   translateButton = document.getElementById('translateButton');
+  copyResultButton = document.getElementById('copyResultButton');
   textInput = document.getElementById('textInput');
-  results = document.getElementById('results');
+  history = document.getElementById('history');
+  resultContainer = document.getElementById('result');
 }
 
 function initFirebase() {
@@ -45,15 +49,23 @@ function getTranslations() {
     .collection('translations')
     .orderBy('date', 'desc')
     .onSnapshot(function (querySnapshot) {
-      results.innerHTML = '';
-
+      translateButton.removeAttribute('disabled');
+      history.innerHTML = '';
+      let index = 0;
       querySnapshot.forEach(function (doc) {
-        results.innerHTML += '<br />' + doc.data().en;
+        if (index === 0) {
+          textInput.value = doc.data().en;
+          resultContainer.innerHTML = doc.data().de || '';
+        } else {
+          history.innerHTML += '<tr><td>' + doc.data().en + '</td><td>' + doc.data().de + '</td></tr>'
+        }
+        index++;
       });
     });
 }
 
 function translateButtonClicked() {
+  translateButton.setAttribute('disabled', '');
   const text = (textInput.value || '').trim();
   if (!text || !userId) return;
   const translation = {
@@ -61,11 +73,27 @@ function translateButtonClicked() {
     date: firebase.firestore.FieldValue.serverTimestamp(),
   };
   firebaseFirestore.collection('users').doc(userId).collection('translations').add(translation).catch();
-  console.log(firebaseFirestore);
+}
+
+function checkButtonState() {
+  if ((textInput.value || '').trim()) {
+    translateButton.removeAttribute('disabled');
+  } else {
+    translateButton.setAttribute('disabled', '');
+    resultContainer.innerHTML = 'result will be displayed here…';
+  }
+}
+
+function copyTranslation() {
+  resultContainer.removeAttribute('disabled');
+  resultContainer.select();
+  document.execCommand('copy');
+  resultContainer.setAttribute('disabled', '');
 }
 
 document.addEventListener('DOMContentLoaded', function () {
   initDom();
   initFirebase();
   translateButton.addEventListener('click', translateButtonClicked);
+  copyResultButton.addEventListener('click', copyTranslation);
 });
