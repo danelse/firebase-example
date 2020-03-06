@@ -6,15 +6,17 @@ const translate = new Translate({ key: functions.config().google.translate.api_k
 admin.initializeApp();
 
 exports.onWriteTranslation = functions
-    .region('europe-west1')
-    .firestore
-    .document('users/{userId}/translations/{translationId}')
-    .onCreate(async (snap) => {
-        const from = (snap.data() || {}).en;
-        if (!from) return;
-        let [translations] = await translate.translate(from, 'de');
-        translations = Array.isArray(translations) ? translations : [translations];
-        if (translations.length) {
-            return admin.firestore().doc(snap.ref.path).update('de', translations[0]);
-        }
-    });
+  .region('europe-west1')
+  .firestore.document('users/{userId}/translations/{translationId}')
+  .onCreate(async snap => {
+    const from = (snap.data() || {}).en;
+    if (!from) return;
+    let [translations] = await translate.translate(from, 'de');
+    translations = Array.isArray(translations) ? translations : [translations];
+    if (translations.length) {
+      return admin
+        .firestore()
+        .doc(snap.ref.path)
+        .update('de', translations[0]);
+    }
+  });
