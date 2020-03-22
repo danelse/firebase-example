@@ -1,0 +1,107 @@
+let translateButton;
+let copyResultButton;
+let textInput;
+let history;
+let resultContainer;
+
+let userId;
+let firebaseAuth;
+let firebaseFirestore;
+
+function initDom() {
+  translateButton = document.getElementById('translateButton');
+  copyResultButton = document.getElementById('copyResultButton');
+  textInput = document.getElementById('textInput');
+  history = document.getElementById('history');
+  resultContainer = document.getElementById('result');
+}
+
+function initFirebase() {
+  const firebaseConfig = {
+    apiKey: '<your Firebase API key>',
+    authDomain: '<your Firebase auth domain>',
+    databaseURL: '<your Firebase database URL>',
+    projectId: '<your Firebase project ID>',
+    storageBucket: '<your Firebase storage bucket>',
+    messagingSenderId: '<your Firebase messaging sender ID>',
+    appId: '<your app ID>'
+  };
+  firebase.initializeApp(firebaseConfig);
+
+  firebaseAuth = firebase.auth();
+  firebaseFirestore = firebase.firestore();
+
+  firebaseAuth
+    .signInAnonymously()
+    .then(function(auth) {
+      userId = auth.user.uid;
+      getTranslations();
+    })
+    .catch(function(error) {
+      console.error(error);
+    });
+}
+
+function getTranslations() {
+  firebaseFirestore
+    .collection('users')
+    .doc(userId)
+    .collection('translations')
+    .orderBy('date', 'desc')
+    .limit(10)
+    .onSnapshot(function(querySnapshot) {
+      translateButton.removeAttribute('disabled');
+      history.innerHTML = '';
+      let index = 0;
+      querySnapshot.forEach(function(doc) {
+        if (index === 0) {
+          textInput.value = doc.data().en;
+          resultContainer.innerHTML = doc.data().de || '';
+        } else {
+          history.innerHTML +=
+            '<tr><td>' + doc.data().en + '</td><td>' + doc.data().de + '</td></tr>';
+        }
+        index++;
+      });
+    });
+}
+
+function translateButtonClicked() {
+  translateButton.setAttribute('disabled', '');
+  const text = (textInput.value || '').trim();
+  if (!text || !userId) return;
+  const translation = {
+    en: text,
+    date: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  firebaseFirestore
+    .collection('users')
+    .doc(userId)
+    .collection('translations')
+    .add(translation)
+    .catch();
+}
+
+function checkButtonState() {
+  if ((textInput.value || '').trim()) {
+    translateButton.removeAttribute('disabled');
+  } else {
+    translateButton.setAttribute('disabled', '');
+    resultContainer.innerHTML = 'result will be displayed here…';
+  }
+}
+
+function copyTranslation() {
+  resultContainer.removeAttribute('disabled');
+  resultContainer.select();
+  document.execCommand('copy');
+  resultContainer.setAttribute('disabled', '');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initDom();
+  initFirebase();
+  translateButton.addEventListener('click', translateButtonClicked);
+  textInput.addEventListener('input', checkButtonState);
+  copyResultButton.addEventListener('click', copyTranslation);
+});
